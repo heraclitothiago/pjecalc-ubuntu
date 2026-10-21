@@ -21,7 +21,7 @@ instalar() {
 
   #instala dependências
   sudo apt update
-  sudo apt install -y openjdk-8-jre p7zip-full curl wget firefox firefox-l10n-pt-br
+  sudo apt install -y openjdk-8-jre p7zip-full curl wget firefox firefox-l10n-pt-br socat
   if [[ ! -f "$INSTALLER" ]]; then
     wget -O "$INSTALLER.part" "$URL" || { rm -f "$INSTALLER.part"; return 1; }
     mv -- "$INSTALLER.part" "$INSTALLER"
@@ -48,7 +48,12 @@ instalar() {
   sudo rm -rf \
     "$DEST/navegador/windows/App" \
     "$DEST/navegador/windows/Other" \
+    "$DEST/navegador/windows/Data" \
+    "$DEST/navegador/windows/FirefoxPortable.ini" \
+    "$DEST/navegador/windows/help.html" \
     "$DEST/navegador/windows/FirefoxPortable.exe" \
+    "$DEST/iniciarPjeCalc.bat" \
+    "$DEST/iniciarPjeCalcDebug.bat" \
     "$DEST/bin/jre"
 
   #instala o as instrucões dentro do exe para o firefox do linux
