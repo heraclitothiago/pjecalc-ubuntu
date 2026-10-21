@@ -18,39 +18,66 @@ instalar() {
     read -r -p 'Substituir a instalação existente? [s/N] ' confirma
     [[ "$confirma" =~ ^[sS]$ ]] || return 0
   fi
+
+  #instala dependências
   sudo apt update
   sudo apt install -y openjdk-8-jre p7zip-full curl wget firefox firefox-l10n-pt-br
   if [[ ! -f "$INSTALLER" ]]; then
     wget -O "$INSTALLER.part" "$URL" || { rm -f "$INSTALLER.part"; return 1; }
     mv -- "$INSTALLER.part" "$INSTALLER"
   fi
+
+  #extrai o instalador
   TEMP="$(mktemp -d)"
   7z x -y "$INSTALLER" "-o$TEMP" >/dev/null
   SOURCE="$(find "$TEMP" -type f -path '*/bin/pjecalc.jar' -printf '%h\n' -quit)"
   [[ -n "$SOURCE" ]] || { echo 'Não foi encontrado bin/pjecalc.jar na extração.' >&2; return 1; }
   SOURCE="$(dirname -- "$SOURCE")"
   [[ -d "$SOURCE/navegador/windows" ]] || { echo 'Estrutura navegador/windows não encontrada.' >&2; return 1; }
+
+  # Remove o instalador baixado após extração bem-sucedida
+  rm -f -- "$INSTALLER"
+  
   sudo rm -rf -- "$DEST"
   sudo mkdir -p "$DEST"
   sudo cp -a "$SOURCE/." "$DEST/"
   sudo install -m 755 "$BASE/iniciar-pjecalc.sh" "$DEST/iniciar-pjecalc.sh"
   sudo install -m 644 "$BASE/pjecalc.png" "$DEST/pjecalc.png"
-  if [[ -e "$DEST/navegador/windows/firefox.exe" && ! -e "$DEST/navegador/windows/firefox.exe.bak" ]]; then
-    sudo mv "$DEST/navegador/windows/firefox.exe" "$DEST/navegador/windows/firefox.exe.bak"
-  fi
-  sudo install -m 755 "$BASE/FirefoxPortable.exe" "$DEST/navegador/windows/firefox.exe"
+
+# Remove os componentes do Windows
+  sudo rm -rf \
+    "$DEST/navegador/windows/App" \
+    "$DEST/navegador/windows/Other" \
+    "$DEST/navegador/windows/FirefoxPortable.exe" \
+    "$DEST/bin/jre"
+
+  #instala o as instrucões dentro do exe para o firefox do linux
+  sudo install -m 755 "$BASE/FirefoxPortable.exe" "$DEST/navegador/windows/FirefoxPortable.exe"
   sudo chown -R "$(id -u):$(id -g)" "$DEST"
   mkdir -p "$(dirname "$DESKTOP")"
+
+  # Atalho no menu de aplicativos (Super + A)
   install -m 755 "$BASE/pjecalc.desktop" "$DESKTOP"
-  update-desktop-database "$(dirname "$DESKTOP")" 2>/dev/null || true
-  echo 'Instalação concluída.'
-}
+
+  # Atalho na área de trabalho
+  AREA_TRABALHO="$(xdg-user-dir DESKTOP)"
+  install -m 755 "$BASE/pjecalc.desktop" "$AREA_TRABALHO/pjecalc.desktop"
+
+  # Marca o atalho como confiável no GNOME
+  gio set "$AREA_TRABALHO/pjecalc.desktop" metadata::trusted true
+    update-desktop-database "$(dirname "$DESKTOP")" 2>/dev/null || true
+    echo 'Instalação concluída.'
+  }
 
 desinstalar() {
   echo "Serão removidos $DEST e $DESKTOP."
+
   echo 'Arquivos de dados eventualmente salvos dentro do diretório também serão apagados.'
   read -r -p 'Confirmar desinstalação? [s/N] ' confirma
   [[ "$confirma" =~ ^[sS]$ ]] || { echo 'Cancelado.'; return 0; }
+
+  # Remove o atalho da área de trabalho
+  rm -f "$(xdg-user-dir DESKTOP)/pjecalc.desktop"
   if [[ -d "$DEST" ]]; then sudo rm -rf -- "$DEST"; fi
   rm -f -- "$DESKTOP"
   update-desktop-database "$(dirname "$DESKTOP")" 2>/dev/null || true
